@@ -3,7 +3,7 @@ import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
-import { invokeAI, getAIProviderInfo } from "./_core/ai-provider";
+import { invokeAI, getAIProviderInfo, updateAIConfigCache } from "./_core/ai-provider-dynamic";
 import { generateSystemPrompt } from "./_core/vitabot-system-prompt";
 import {
   sendAppointmentNotification,
@@ -74,6 +74,22 @@ export const appRouter = router({
     getAIStatus: publicProcedure.query(() => {
       return getAIProviderInfo();
     }),
+
+    syncAIConfig: publicProcedure
+      .input(
+        z.object({
+          provider: z.enum(["manus", "openai", "anthropic", "groq"]),
+          openaiKey: z.string().optional(),
+          anthropicKey: z.string().optional(),
+          groqKey: z.string().optional(),
+          enabled: z.boolean(),
+        })
+      )
+      .mutation(({ input }) => {
+        // Update the server-side cache with client configuration
+        updateAIConfigCache(input);
+        return { success: true, message: "AI configuration synchronized" };
+      }),
 
     sendPatientConfirmation: publicProcedure
       .input(

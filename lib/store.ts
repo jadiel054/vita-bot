@@ -64,6 +64,15 @@ export interface ClinicSettings {
   plan: PlanType;
 }
 
+export interface AIConfig {
+  provider: "manus" | "openai" | "anthropic" | "groq";
+  openaiKey?: string;
+  anthropicKey?: string;
+  groqKey?: string;
+  enabled: boolean;
+  lastUpdated: string;
+}
+
 export interface AppState {
   clinic: ClinicSettings;
   doctors: Doctor[];
@@ -71,6 +80,7 @@ export interface AppState {
   appointments: Appointment[];
   currentPatientId?: string;
   adminLoggedIn: boolean;
+  aiConfig?: AIConfig;
 }
 
 // ─── Default Data ─────────────────────────────────────────────────────────────
@@ -145,6 +155,13 @@ const KEYS = {
   appointments: "@vitabot:appointments",
   currentPatientId: "@vitabot:currentPatientId",
   adminLoggedIn: "@vitabot:adminLoggedIn",
+  aiConfig: "@vitabot:aiConfig",
+};
+
+const DEFAULT_AI_CONFIG: AIConfig = {
+  provider: "manus",
+  enabled: true,
+  lastUpdated: new Date().toISOString(),
 };
 
 // ─── Store Functions ───────────────────────────────────────────────────────────
@@ -298,6 +315,45 @@ export function getAvailableSlots(doctor: Doctor, date: string, appointments: Ap
     .map((a) => a.time);
 
   return doctor.availableHours.filter((h) => !booked.includes(h));
+}
+
+// ─── AI Configuration ────────────────────────────────────────────────────────
+
+export async function getAIConfig(): Promise<AIConfig> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.aiConfig);
+    return raw ? JSON.parse(raw) : DEFAULT_AI_CONFIG;
+  } catch {
+    return DEFAULT_AI_CONFIG;
+  }
+}
+
+export async function saveAIConfig(config: AIConfig): Promise<void> {
+  config.lastUpdated = new Date().toISOString();
+  await AsyncStorage.setItem(KEYS.aiConfig, JSON.stringify(config));
+}
+
+export async function updateAIProvider(provider: AIConfig["provider"]): Promise<void> {
+  const config = await getAIConfig();
+  config.provider = provider;
+  await saveAIConfig(config);
+}
+
+export async function setAIApiKey(
+  provider: "openai" | "anthropic" | "groq",
+  key: string
+): Promise<void> {
+  const config = await getAIConfig();
+  if (provider === "openai") config.openaiKey = key;
+  if (provider === "anthropic") config.anthropicKey = key;
+  if (provider === "groq") config.groqKey = key;
+  await saveAIConfig(config);
+}
+
+export async function toggleAIEnabled(enabled: boolean): Promise<void> {
+  const config = await getAIConfig();
+  config.enabled = enabled;
+  await saveAIConfig(config);
 }
 
 export const SPECIALTIES = [

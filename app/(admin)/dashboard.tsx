@@ -265,6 +265,12 @@ export default function AdminDashboardScreen() {
           onPress={() => router.push("/(admin)/settings" as any)}
           colors={colors}
         />
+        <NavItem
+          icon="brain"
+          label="Configurações de IA"
+          onPress={() => router.push("/(admin)/ai-settings" as any)}
+          colors={colors}
+        />
 
         <View style={{ height: 24 }} />
       </ScrollView>
