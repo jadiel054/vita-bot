@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { trpc } from "@/lib/trpc";
 import { 
   getAIConfig, 
   saveAIConfig, 
@@ -146,6 +147,7 @@ export default function AISettingsScreen() {
   const colors = useColors();
   const [config, setConfig] = useState<AIConfig | null>(null);
   const [saving, setSaving] = useState(false);
+  const syncAIConfig = trpc.vitabot.syncAIConfig.useMutation();
 
   useEffect(() => {
     getAIConfig().then(setConfig);
@@ -171,6 +173,8 @@ export default function AISettingsScreen() {
     setSaving(true);
     try {
       await saveAIConfig(config);
+      await syncAIConfig.mutateAsync(config);
+
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }

@@ -109,10 +109,15 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
 
   const chatMutation = trpc.vitabot.chat.useMutation();
+  const syncAIConfig = trpc.vitabot.syncAIConfig.useMutation();
 
   // Load clinic name and send welcome message
   useEffect(() => {
     (async () => {
+      // Sync AI Config with server
+      const aiConfig = await getAIConfig();
+      await syncAIConfig.mutateAsync(aiConfig);
+
       const clinic = await getClinic();
       setClinicName(clinic.name);
 
