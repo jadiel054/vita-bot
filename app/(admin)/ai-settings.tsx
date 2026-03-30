@@ -115,7 +115,20 @@ function ApiKeyField({
 
   return (
     <View style={styles.field}>
-      <Text style={[styles.fieldLabel, { color: colors.muted }]}>{label}</Text>
+      <View style={styles.labelRow}>
+        <Text style={[styles.fieldLabel, { color: colors.muted }]}>{label}</Text>
+        <Pressable
+          style={({ pressed }) => [styles.eyeToggle, pressed && { opacity: 0.6 }]}
+          onPress={() => setShowKey(!showKey)}
+          hitSlop={10}
+        >
+          <IconSymbol
+            name={showKey ? "eye.slash.fill" : "eye.fill"}
+            size={18}
+            color={colors.primary}
+          />
+        </Pressable>
+      </View>
       <View style={[styles.apiKeyContainer, { borderColor: colors.border }]}>
         <TextInput
           style={[
@@ -128,16 +141,6 @@ function ApiKeyField({
           placeholderTextColor={colors.muted}
           secureTextEntry={!showKey}
         />
-        <Pressable
-          style={styles.eyeButton}
-          onPress={() => setShowKey(!showKey)}
-        >
-          <IconSymbol
-            name={showKey ? "eye.slash" : "eye"}
-            size={18}
-            color={colors.muted}
-          />
-        </Pressable>
       </View>
     </View>
   );
@@ -258,7 +261,7 @@ export default function AISettingsScreen() {
                 Chave de API
               </Text>
               <Text style={[styles.sectionDescription, { color: colors.muted }]}>
-                Cole sua chave de API para o provedor selecionado
+                Cole sua chave de API para o provedor selecionado. Clique no olho para visualizar.
               </Text>
 
               {config.provider === "openai" && (
@@ -422,9 +425,18 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 12,
   },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   fieldLabel: {
     fontSize: 13,
     fontWeight: "600",
+  },
+  eyeToggle: {
+    padding: 8,
+    marginRight: -8,
   },
   apiKeyContainer: {
     flexDirection: "row",
@@ -438,10 +450,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-  },
-  eyeButton: {
-    padding: 10,
-    marginRight: 4,
   },
   infoBox: {
     borderRadius: 8,

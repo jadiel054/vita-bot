@@ -183,8 +183,11 @@ export async function invokeAI(messages: AIMessage[]): Promise<AIResponse> {
   try {
     switch (config.provider) {
       case "openai": {
-        const apiKey = config.openaiKey || process.env.OPENAI_API_KEY;
-        if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
+        const apiKey = config.openaiKey?.trim() || process.env.OPENAI_API_KEY?.trim();
+        if (!apiKey || apiKey.length === 0) {
+          console.warn("[AI Provider] OpenAI key not found, falling back to Manus");
+          return await invokeManus(messages);
+        }
         return await invokeOpenAI(
           messages,
           apiKey,
@@ -194,8 +197,11 @@ export async function invokeAI(messages: AIMessage[]): Promise<AIResponse> {
       }
 
       case "groq": {
-        const apiKey = config.groqKey || process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY;
-        if (!apiKey) throw new Error("GROQ_API_KEY or OPENAI_API_KEY is not configured");
+        const apiKey = config.groqKey?.trim() || process.env.GROQ_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim();
+        if (!apiKey || apiKey.length === 0) {
+          console.warn("[AI Provider] Groq key not found, falling back to Manus");
+          return await invokeManus(messages);
+        }
         return await invokeOpenAI(
           messages,
           apiKey,
@@ -205,8 +211,11 @@ export async function invokeAI(messages: AIMessage[]): Promise<AIResponse> {
       }
 
       case "anthropic": {
-        const apiKey = config.anthropicKey || process.env.ANTHROPIC_API_KEY;
-        if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
+        const apiKey = config.anthropicKey?.trim() || process.env.ANTHROPIC_API_KEY?.trim();
+        if (!apiKey || apiKey.length === 0) {
+          console.warn("[AI Provider] Anthropic key not found, falling back to Manus");
+          return await invokeManus(messages);
+        }
         return await invokeAnthropic(messages, apiKey);
       }
 
@@ -216,7 +225,13 @@ export async function invokeAI(messages: AIMessage[]): Promise<AIResponse> {
     }
   } catch (error) {
     console.error(`[AI Provider] Error with ${config.provider}:`, error);
-    throw error;
+    console.log("[AI Provider] Attempting fallback to Manus...");
+    try {
+      return await invokeManus(messages);
+    } catch (fallbackError) {
+      console.error("[AI Provider] Manus fallback also failed:", fallbackError);
+      throw fallbackError;
+    }
   }
 }
 
@@ -234,11 +249,11 @@ export function getAIProviderInfo(): {
   const configured = (() => {
     switch (config.provider) {
       case "openai":
-        return !!(config.openaiKey || process.env.OPENAI_API_KEY);
+        return !!(config.openaiKey?.trim() || process.env.OPENAI_API_KEY?.trim());
       case "groq":
-        return !!(config.groqKey || process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY);
+        return !!(config.groqKey?.trim() || process.env.GROQ_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim());
       case "anthropic":
-        return !!(config.anthropicKey || process.env.ANTHROPIC_API_KEY);
+        return !!(config.anthropicKey?.trim() || process.env.ANTHROPIC_API_KEY?.trim());
       case "manus":
         return !!ENV.forgeApiKey;
       default:
