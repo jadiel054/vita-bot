@@ -22,8 +22,10 @@ import {
   generateId,
   formatCpf,
   formatPhone,
+  getPatients,
   type Patient,
 } from "@/lib/store";
+import { isValidCPF, getCPFErrorMessage } from "@/lib/cpf-validator";
 
 const INSURANCE_OPTIONS = [
   "Unimed", "Bradesco Saúde", "SulAmérica", "Amil",
@@ -156,7 +158,7 @@ export default function PatientRegisterScreen() {
   const isValid = () => {
     return (
       fullName.trim().length >= 3 &&
-      cpf.replace(/\D/g, "").length === 11 &&
+      isValidCPF(cpf) &&
       birthDate.length === 10 &&
       phone.replace(/\D/g, "").length >= 10 &&
       email.includes("@")
@@ -164,13 +166,50 @@ export default function PatientRegisterScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!isValid()) {
-      Alert.alert("Campos obrigatórios", "Por favor, preencha todos os campos obrigatórios corretamente.");
+    // Validar nome
+    if (fullName.trim().length < 3) {
+      Alert.alert("Nome inválido", "O nome deve ter pelo menos 3 caracteres.");
+      return;
+    }
+
+    // Validar CPF
+    if (!isValidCPF(cpf)) {
+      const errorMsg = getCPFErrorMessage(cpf);
+      Alert.alert("CPF Inválido", errorMsg);
+      return;
+    }
+
+    // Validar data
+    if (birthDate.length !== 10) {
+      Alert.alert("Data de nascimento inválida", "Por favor, preencha a data de nascimento corretamente (DD/MM/YYYY).");
+      return;
+    }
+
+    // Validar telefone
+    if (phone.replace(/\D/g, "").length < 10) {
+      Alert.alert("Telefone inválido", "O telefone deve ter pelo menos 10 dígitos.");
+      return;
+    }
+
+    // Validar email
+    if (!email.includes("@")) {
+      Alert.alert("Email inválido", "Por favor, digite um email válido.");
       return;
     }
 
     setLoading(true);
     try {
+      // Verificar se CPF já está cadastrado
+      const existingPatients = await getPatients();
+      const cpfNormalized = cpf.replace(/\D/g, "");
+      const cpfExists = existingPatients.some((p) => p.cpf.replace(/\D/g, "") === cpfNormalized);
+
+      if (cpfExists) {
+        Alert.alert("CPF já cadastrado", "Este CPF já está registrado em nosso sistema.");
+        setLoading(false);
+        return;
+      }
+
       // Convert DD/MM/YYYY to YYYY-MM-DD
       const [day, month, year] = birthDate.split("/");
       const isoDate = `${year}-${month}-${day}`;
@@ -196,13 +235,13 @@ export default function PatientRegisterScreen() {
       }
 
       Alert.alert(
-        "Cadastro realizado!",
+        "✅ Cadastro Realizado!",
         `Bem-vindo(a), ${fullName.split(" ")[0]}! Seu cadastro foi concluído com sucesso.`,
         [{ text: "OK", onPress: () => router.canGoBack() ? router.back() : router.replace("/(tabs)/profile" as any) }]
       );
     } catch (err) {
       console.error("[PatientRegister] Erro ao cadastrar paciente:", err);
-      Alert.alert("Erro", "Não foi possível realizar o cadastro. Tente novamente.");
+      Alert.alert("❌ Erro", "Não foi possível realizar o cadastro. Tente novamente.");
     } finally {
       setLoading(false);
     }

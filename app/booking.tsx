@@ -31,6 +31,7 @@ import {
   type Appointment,
   SPECIALTIES,
 } from "@/lib/store";
+import { isValidCPF, getCPFErrorMessage } from "@/lib/cpf-validator";
 import { getApiBaseUrl } from "@/constants/oauth";
 
 // ─── Stepper ──────────────────────────────────────────────────────────────────
@@ -220,15 +221,30 @@ export default function BookingScreen() {
   };
 
   const handleFindPatient = async () => {
-    if (!cpfInput.trim()) return;
+    if (!cpfInput.trim()) {
+      Alert.alert("CPF vazio", "Por favor, digite seu CPF.");
+      return;
+    }
+
+    // Validar CPF com algoritmo oficial
+    if (!isValidCPF(cpfInput)) {
+      const errorMsg = getCPFErrorMessage(cpfInput);
+      Alert.alert("CPF Inválido", errorMsg);
+      return;
+    }
+
     const patients = await getPatients();
     const normalizedInput = cpfInput.replace(/\D/g, "");
     const patient = patients.find((p) => p.cpf.replace(/\D/g, "") === normalizedInput);
+    
     if (patient) {
       setFoundPatient(patient);
       setStep(1);
     } else {
-      Alert.alert("Paciente não encontrado", "Por favor, realize o cadastro primeiro.");
+      Alert.alert(
+        "Paciente não encontrado",
+        "O CPF informado não está cadastrado em nosso sistema. Por favor, realize o cadastro primeiro."
+      );
     }
   };
 

@@ -14,6 +14,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { getPatients, formatDate, type Patient } from "@/lib/store";
+import { isValidCPF } from "@/lib/cpf-validator";
 
 export default function AdminPatientsScreen() {
   const colors = useColors();
