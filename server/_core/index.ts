@@ -61,7 +61,7 @@ async function startServer() {
   });
 
   // Register WhatsApp routes
-  const whatsappRouter = (await import("../routes/whatsapp.js")).default;
+  const whatsappRouter = (await import("../routes/whatsapp.")).default;
   app.use("/api/whatsapp", whatsappRouter);
 
   app.use(
