@@ -31,6 +31,7 @@ import {
   type Appointment,
   SPECIALTIES,
 } from "@/lib/store";
+import { getApiBaseUrl } from "@/constants/oauth";
 
 // ─── Stepper ──────────────────────────────────────────────────────────────────
 
@@ -144,7 +145,8 @@ export default function BookingScreen() {
       const clinic = await getClinic();
       if (clinic.whatsapp) {
         try {
-          const response = await fetch("/api/whatsapp/notify-appointment", {
+          const apiBaseUrl = getApiBaseUrl();
+          const response = await fetch(`${apiBaseUrl}/api/whatsapp/notify-appointment`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -170,7 +172,8 @@ export default function BookingScreen() {
       // Send confirmation message to patient via HTTP
       if (patient?.phone) {
         try {
-          const response = await fetch("/api/whatsapp/send-confirmation", {
+          const apiBaseUrl = getApiBaseUrl();
+          const response = await fetch(`${apiBaseUrl}/api/whatsapp/send-confirmation`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
