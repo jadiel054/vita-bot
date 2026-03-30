@@ -2,17 +2,18 @@
   "version": 2,
   "builds": [
     {
-      "src": "server/_core/index.ts",
+      "src": "package.json",
       "use": "@vercel/node",
       "config": {
-        "tsconfig": "tsconfig.server.json"
+        "buildCommand": "pnpm build",
+        "outputDirectory": "dist"
       }
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "server/_core/index.ts"
+      "dest": "dist/index.js"
     }
   ]
 }
