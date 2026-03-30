@@ -117,7 +117,13 @@ export default function BookingScreen() {
     try {
       const patientId = await getCurrentPatientId();
       const patients = await getPatients();
-      const patient = patientId ? patients.find((p) => p.id === patientId) : foundPatient;
+      // If patientId exists in storage, prioritize it, otherwise use foundPatient (returning patient)
+      let patient = patientId ? patients.find((p) => p.id === patientId) : foundPatient;
+
+      // Fallback: if patientId was set but not found in patients list, try to find by ID again
+      if (!patient && patientId) {
+        patient = patients.find(p => p.id === patientId);
+      }
 
       const appointment: Appointment = {
         id: generateId(),
@@ -316,6 +322,7 @@ export default function BookingScreen() {
             Escolha o Médico
           </Text>
           <FlatList
+            key="doctors-list"
             scrollEnabled={false}
             data={doctors}
             keyExtractor={(d) => d.id}
@@ -363,6 +370,7 @@ export default function BookingScreen() {
             Escolha a Data
           </Text>
           <FlatList
+            key="dates-list"
             scrollEnabled={false}
             data={dates}
             keyExtractor={(d) => d.date}
@@ -413,6 +421,7 @@ export default function BookingScreen() {
           Escolha o Horário
         </Text>
         <FlatList
+          key="times-list"
           scrollEnabled={false}
           data={availableSlots}
           keyExtractor={(t) => t}

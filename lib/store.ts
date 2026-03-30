@@ -285,9 +285,13 @@ export function getWeekDayName(date: Date): string {
 }
 
 export function getAvailableSlots(doctor: Doctor, date: string, appointments: Appointment[]): string[] {
+  // Use date + "T12:00:00" to avoid timezone shifts during day-of-week calculation
   const d = new Date(date + "T12:00:00");
   const dayName = getWeekDayName(d);
-  if (!doctor.availableDays.includes(dayName)) return [];
+  
+  if (!doctor.availableDays || !doctor.availableDays.includes(dayName)) {
+    return [];
+  }
 
   const booked = appointments
     .filter((a) => a.doctorId === doctor.id && a.date === date && a.status !== "cancelled")
