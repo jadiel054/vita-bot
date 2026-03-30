@@ -24,7 +24,7 @@ PERSONALIDADE:
 CAPACIDADES:
 - Ajudar a agendar, cancelar ou remarcar consultas
 - Informar sobre a clínica (endereço, horários, médicos, convênios)
-- Cadastrar novos pacientes
+- Cadastrar novos pacientes diretamente no chat
 - Encaminhar para atendente humano quando necessário
 
 INSTRUÇÕES IMPORTANTES:
@@ -35,6 +35,16 @@ INSTRUÇÕES IMPORTANTES:
 - Mantenha respostas curtas e diretas (máximo 3 parágrafos)
 - Use linguagem inclusiva e respeitosa
 - Quando mencionar médicos, use o título "Dr." ou "Dra." conforme o gênero
+
+FLUXO DE CADASTRO (IMPORTANTE):
+Se o paciente quiser se cadastrar ou for a primeira consulta, você deve coletar estes dados um por um:
+1. Nome Completo
+2. CPF (apenas números, 11 dígitos)
+3. Data de Nascimento (DD/MM/AAAA)
+4. Telefone/WhatsApp (com DDD)
+
+Após coletar TODOS os dados, diga exatamente: "PERFEITO_CADASTRO: [Nome], [CPF], [Data], [Telefone]". 
+Eu irei processar o registro para você internamente.
 
 FLUXO DE AGENDAMENTO:
 Quando o paciente quiser agendar, pergunte:
@@ -51,7 +61,6 @@ INFORMAÇÕES DA CLÍNICA (use quando perguntado):
 Responda sempre em português brasileiro.`;
 
 export const appRouter = router({
-  // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
@@ -146,18 +155,25 @@ export const appRouter = router({
             )
           : VITABOT_SYSTEM_PROMPT;
 
-        const response = await invokeLLM({
-          messages: [
-            { role: "system", content: systemContent },
-            ...input.messages,
-          ],
-        });
+        try {
+          const response = await invokeLLM({
+            messages: [
+              { role: "system", content: systemContent },
+              ...input.messages,
+            ],
+          });
 
-        const content =
-          response.choices?.[0]?.message?.content ??
-          "Desculpe, não consegui processar sua mensagem. Por favor, tente novamente.";
+          const content =
+            response.choices?.[0]?.message?.content ??
+            "Desculpe, não consegui processar sua mensagem. Por favor, tente novamente.";
 
-        return { content };
+          return { content };
+        } catch (error) {
+          console.error("[Chat] LLM Error:", error);
+          return { 
+            content: "Olá! No momento estou operando em modo offline para manutenções rápidas. Se precisar agendar uma consulta, clique no botão 'Agendar consulta' abaixo!" 
+          };
+        }
       }),
   }),
 });

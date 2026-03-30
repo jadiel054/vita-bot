@@ -18,7 +18,14 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { trpc } from "@/lib/trpc";
-import { getClinic, getCurrentPatientId } from "@/lib/store";
+import { 
+  getClinic, 
+  getCurrentPatientId, 
+  getPatients, 
+  savePatients, 
+  setCurrentPatientId,
+  generateId 
+} from "@/lib/store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -159,10 +166,53 @@ export default function ChatScreen() {
           clinicName,
         });
 
+        const botContent = String(result.content);
+
+        // Check for special registration keyword
+        if (botContent.includes("PERFEITO_CADASTRO:")) {
+          try {
+            const dataStr = botContent.split("PERFEITO_CADASTRO:")[1].trim();
+            const [name, cpf, birth, phone] = dataStr.split(",").map(s => s.trim());
+            
+            const patients = await getPatients();
+            const newPatient = {
+              id: generateId(),
+              fullName: name,
+              cpf: cpf.replace(/\D/g, ""),
+              birthDate: birth,
+              phone: phone.replace(/\D/g, ""),
+              whatsapp: phone.replace(/\D/g, ""),
+              email: "",
+              healthInsurance: "Particular",
+              howFound: "Chat",
+              createdAt: new Date().toISOString(),
+            };
+            
+            patients.push(newPatient);
+            await savePatients(patients);
+            await setCurrentPatientId(newPatient.id);
+
+            const successMsg: Message = {
+              id: (Date.now() + 1).toString(),
+              role: "assistant",
+              content: `Pronto, ${name}! Seu cadastro foi realizado com sucesso. Agora você já pode agendar sua consulta!`,
+              timestamp: new Date(),
+            };
+            setMessages((prev) => [...prev, successMsg]);
+            
+            if (Platform.OS !== "web") {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+            return;
+          } catch (e) {
+            console.error("Failed to parse registration data:", e);
+          }
+        }
+
         const botMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content: String(result.content),
+          content: botContent,
           timestamp: new Date(),
         };
 

@@ -201,11 +201,16 @@ export default function BookingScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
 
-      Alert.alert(
-        "Consulta Agendada!",
-        `Sua consulta com ${selectedDoctor.name} foi agendada para ${formatDate(selectedDate)} às ${selectedTime}.`,
-        [{ text: "OK", onPress: () => router.push("/(tabs)/appointments" as any) }]
-      );
+      if (Platform.OS === "web") {
+        alert(`Consulta Agendada!\n\nSua consulta com ${selectedDoctor.name} foi agendada para ${formatDate(selectedDate)} às ${selectedTime}.`);
+        router.push("/(tabs)/appointments" as any);
+      } else {
+        Alert.alert(
+          "Consulta Agendada!",
+          `Sua consulta com ${selectedDoctor.name} foi agendada para ${formatDate(selectedDate)} às ${selectedTime}.`,
+          [{ text: "OK", onPress: () => router.push("/(tabs)/appointments" as any) }]
+        );
+      }
     } catch (error) {
       Alert.alert("Erro", "Falha ao agendar consulta. Tente novamente.");
       console.error(error);
