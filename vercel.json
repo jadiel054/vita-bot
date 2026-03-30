@@ -1,15 +1,11 @@
 {
   "version": 2,
   "buildCommand": "pnpm build",
-  "functions": {
-    "dist/index.js": {
-      "runtime": "nodejs20.x"
-    }
-  },
+  "outputDirectory": "dist",
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/dist/index.js"
+      "dest": "/index.js"
     }
   ]
 }
