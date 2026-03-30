@@ -1,19 +1,24 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/node",
-      "config": {
-        "buildCommand": "pnpm build",
-        "outputDirectory": "dist"
-      }
+  "buildCommand": "pnpm build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/index.js": {
+      "runtime": "nodejs20.x"
     }
-  ],
+  },
   "routes": [
     {
+      "src": "/api/health",
+      "dest": "api/index.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "api/index.js"
+    },
+    {
       "src": "/(.*)",
-      "dest": "dist/index.js"
+      "dest": "api/index.js"
     }
   ]
 }
