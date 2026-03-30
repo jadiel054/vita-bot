@@ -1,20 +1,22 @@
 {
   "version": 2,
-  "buildCommand": "pnpm build",
-  "outputDirectory": "dist",
-  "functions": {
-    "api/index.js": {
-      "runtime": "nodejs20.x"
+  "builds": [
+    {
+      "src": "server/_core/index.ts",
+      "use": "@vercel/node",
+      "config": {
+        "nodeVersion": "20.x"
+      }
     }
-  },
+  ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.js"
+      "dest": "server/_core/index.ts"
     },
     {
       "src": "/(.*)",
-      "dest": "/api/index.js"
+      "dest": "server/_core/index.ts"
     }
   ]
 }
