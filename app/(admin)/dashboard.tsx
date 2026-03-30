@@ -18,8 +18,10 @@ import {
   getPatients,
   getDoctors,
   setAdminLoggedIn,
+  getAdminSession,
   formatDate,
   type Appointment,
+  type AdminSession,
 } from "@/lib/store";
 
 function MetricCard({
@@ -44,7 +46,7 @@ function MetricCard({
       </View>
       <Text style={[styles.metricValue, { color: colors.foreground }]}>{value}</Text>
       <Text style={[styles.metricLabel, { color: colors.muted }]}>{label}</Text>
-      {subtitle && <Text style={[styles.metricSub, { color: color }]}>{subtitle}</Text>}
+      {subtitle && <Text style={[styles.metricSub, { color }]}>{subtitle}</Text>}
     </View>
   );
 }
@@ -52,11 +54,13 @@ function MetricCard({
 function NavItem({
   icon,
   label,
+  subtitle,
   onPress,
   colors,
 }: {
   icon: any;
   label: string;
+  subtitle?: string;
   onPress: () => void;
   colors: any;
 }) {
@@ -72,7 +76,10 @@ function NavItem({
       <View style={[styles.navIcon, { backgroundColor: colors.primary + "20" }]}>
         <IconSymbol name={icon} size={22} color={colors.primary} />
       </View>
-      <Text style={[styles.navLabel, { color: colors.foreground }]}>{label}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.navLabel, { color: colors.foreground }]}>{label}</Text>
+        {subtitle && <Text style={[styles.navSub, { color: colors.muted }]}>{subtitle}</Text>}
+      </View>
       <IconSymbol name="chevron.right" size={16} color={colors.muted} />
     </Pressable>
   );
@@ -84,16 +91,19 @@ export default function AdminDashboardScreen() {
   const [patientCount, setPatientCount] = useState(0);
   const [doctorCount, setDoctorCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [adminSession, setAdminSession] = useState<AdminSession | null>(null);
 
   const load = useCallback(async () => {
-    const [appts, patients, doctors] = await Promise.all([
+    const [appts, patients, doctors, session] = await Promise.all([
       getAppointments(),
       getPatients(),
       getDoctors(),
+      getAdminSession(),
     ]);
     setAppointments(appts);
     setPatientCount(patients.length);
     setDoctorCount(doctors.length);
+    setAdminSession(session);
   }, []);
 
   useFocusEffect(
@@ -135,12 +145,28 @@ export default function AdminDashboardScreen() {
     ]);
   };
 
+  const adminName = adminSession?.name ?? "Administrador";
+  const adminRole = adminSession?.role ?? "admin";
+  const isPermanent = adminSession?.permanent ?? false;
+
   return (
     <ScreenContainer containerClassName="bg-background">
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <View>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Painel Admin</Text>
+        <View style={{ flex: 1 }}>
+          <View style={styles.adminNameRow}>
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+              {adminName}
+            </Text>
+            {isPermanent && (
+              <View style={[styles.permanentBadge, { backgroundColor: colors.primary + "20", borderColor: colors.primary }]}>
+                <IconSymbol name="shield.fill" size={10} color={colors.primary} />
+                <Text style={[styles.permanentBadgeText, { color: colors.primary }]}>
+                  {adminRole === "superadmin" ? "SUPERADMIN" : "ADMIN"}
+                </Text>
+              </View>
+            )}
+          </View>
           <Text style={[styles.headerSub, { color: colors.muted }]}>
             {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
           </Text>
@@ -238,39 +264,81 @@ export default function AdminDashboardScreen() {
         <NavItem
           icon="calendar"
           label="Agenda Completa"
+          subtitle="Visualizar e gerenciar consultas"
           onPress={() => router.push("/(admin)/schedule" as any)}
           colors={colors}
         />
         <NavItem
           icon="person.2.fill"
           label="Base de Pacientes"
+          subtitle="Cadastros e histórico"
           onPress={() => router.push("/(admin)/patients" as any)}
           colors={colors}
         />
         <NavItem
           icon="stethoscope"
           label="Médicos e Especialidades"
+          subtitle="Equipe médica e horários"
           onPress={() => router.push("/(admin)/doctors" as any)}
           colors={colors}
         />
         <NavItem
           icon="chart.bar.fill"
           label="Analytics e Relatórios"
+          subtitle="Métricas e desempenho"
           onPress={() => router.push("/(admin)/analytics" as any)}
           colors={colors}
         />
         <NavItem
           icon="gear"
           label="Configurações da Clínica"
+          subtitle="Nome, endereço e horários"
           onPress={() => router.push("/(admin)/settings" as any)}
           colors={colors}
         />
         <NavItem
           icon="brain"
           label="Configurações de IA"
+          subtitle="Provedor e chaves de API"
           onPress={() => router.push("/(admin)/ai-settings" as any)}
           colors={colors}
         />
+
+        {/* Monitoring Section — Superadmin only */}
+        {adminRole === "superadmin" && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.primary }]}>MONITORAMENTO</Text>
+            <View style={[styles.monitorCard, { backgroundColor: colors.surface, borderColor: colors.primary + "40" }]}>
+              <View style={styles.monitorHeader}>
+                <IconSymbol name="shield.fill" size={18} color={colors.primary} />
+                <Text style={[styles.monitorTitle, { color: colors.foreground }]}>Acesso SuperAdmin</Text>
+                <View style={[styles.activeBadge, { backgroundColor: "#22C55E20" }]}>
+                  <View style={[styles.activeDot, { backgroundColor: "#22C55E" }]} />
+                  <Text style={[styles.activeText, { color: "#22C55E" }]}>Ativo</Text>
+                </View>
+              </View>
+              <Text style={[styles.monitorDesc, { color: colors.muted }]}>
+                Você tem acesso total e permanente ao sistema. Todas as ações são registradas automaticamente.
+              </Text>
+              <View style={styles.monitorStats}>
+                <View style={styles.monitorStat}>
+                  <Text style={[styles.monitorStatValue, { color: colors.foreground }]}>{appointments.length}</Text>
+                  <Text style={[styles.monitorStatLabel, { color: colors.muted }]}>Total consultas</Text>
+                </View>
+                <View style={[styles.monitorDivider, { backgroundColor: colors.border }]} />
+                <View style={styles.monitorStat}>
+                  <Text style={[styles.monitorStatValue, { color: colors.foreground }]}>{patientCount}</Text>
+                  <Text style={[styles.monitorStatLabel, { color: colors.muted }]}>Pacientes</Text>
+                </View>
+                <View style={[styles.monitorDivider, { backgroundColor: colors.border }]} />
+                <View style={styles.monitorStat}>
+                  <Text style={[styles.monitorStatValue, { color: colors.foreground }]}>{doctorCount}</Text>
+                  <Text style={[styles.monitorStatLabel, { color: colors.muted }]}>Médicos</Text>
+                </View>
+              </View>
+            </View>
+          </>
+        )}
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -287,7 +355,23 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: 1,
   },
-  headerTitle: { fontSize: 20, fontWeight: "700" },
+  adminNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  headerTitle: { fontSize: 18, fontWeight: "700" },
+  permanentBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  permanentBadgeText: { fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
   headerSub: { fontSize: 13, marginTop: 2 },
   logoutBtn: { padding: 8 },
   content: { padding: 16 },
@@ -371,4 +455,39 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   navLabel: { flex: 1, fontSize: 15, fontWeight: "600" },
+  navSub: { fontSize: 12, marginTop: 2 },
+  // Monitoring card
+  monitorCard: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 16,
+    gap: 12,
+    marginBottom: 8,
+  },
+  monitorHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  monitorTitle: { flex: 1, fontSize: 15, fontWeight: "700" },
+  activeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  activeDot: { width: 6, height: 6, borderRadius: 3 },
+  activeText: { fontSize: 11, fontWeight: "700" },
+  monitorDesc: { fontSize: 13, lineHeight: 18 },
+  monitorStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 8,
+  },
+  monitorStat: { flex: 1, alignItems: "center", gap: 2 },
+  monitorStatValue: { fontSize: 22, fontWeight: "800" },
+  monitorStatLabel: { fontSize: 11 },
+  monitorDivider: { width: 1, height: 36 },
 });

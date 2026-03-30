@@ -4,6 +4,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export type PlanType = "free" | "pro" | "premium";
 
+export interface AdminSession {
+  email: string;
+  name: string;
+  role: "superadmin" | "admin";
+  permanent: boolean;
+  loginAt: string;
+}
+
 export interface Patient {
   id: string;
   fullName: string;
@@ -155,6 +163,7 @@ const KEYS = {
   appointments: "@vitabot:appointments",
   currentPatientId: "@vitabot:currentPatientId",
   adminLoggedIn: "@vitabot:adminLoggedIn",
+  adminSession: "@vitabot:adminSession",
   aiConfig: "@vitabot:aiConfig",
 };
 
@@ -266,6 +275,28 @@ export async function isAdminLoggedIn(): Promise<boolean> {
 
 export async function setAdminLoggedIn(val: boolean): Promise<void> {
   await AsyncStorage.setItem(KEYS.adminLoggedIn, val ? "true" : "false");
+  if (!val) {
+    // Limpa a sessão ao fazer logout
+    await AsyncStorage.removeItem(KEYS.adminSession);
+  }
+}
+
+export async function saveAdminSession(session: AdminSession): Promise<void> {
+  await AsyncStorage.setItem(KEYS.adminSession, JSON.stringify(session));
+}
+
+export async function getAdminSession(): Promise<AdminSession | null> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.adminSession);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearAdminSession(): Promise<void> {
+  await AsyncStorage.removeItem(KEYS.adminSession);
+  await AsyncStorage.setItem(KEYS.adminLoggedIn, "false");
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

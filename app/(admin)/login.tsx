@@ -16,11 +16,8 @@ import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { setAdminLoggedIn } from "@/lib/store";
-
-// Demo credentials
-const ADMIN_EMAIL = "admin@vitasaude.com.br";
-const ADMIN_PASSWORD = "vitabot2025";
+import { setAdminLoggedIn, saveAdminSession } from "@/lib/store";
+import { verifyAdminCredentials } from "@/constants/admin-config";
 
 export default function AdminLoginScreen() {
   const colors = useColors();
@@ -36,11 +33,22 @@ export default function AdminLoginScreen() {
     }
 
     setLoading(true);
-    // Simulate auth delay
-    await new Promise((r) => setTimeout(r, 800));
+    // Pequeno delay para simular verificação segura
+    await new Promise((r) => setTimeout(r, 600));
 
-    if (email.trim().toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    const admin = verifyAdminCredentials(email.trim(), password);
+
+    if (admin) {
       await setAdminLoggedIn(true);
+      // Salva sessão com dados do admin (nome, role, email)
+      await saveAdminSession({
+        email: admin.email,
+        name: admin.name,
+        role: admin.role,
+        permanent: admin.permanent,
+        loginAt: new Date().toISOString(),
+      });
+
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -50,7 +58,10 @@ export default function AdminLoginScreen() {
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
-      Alert.alert("Acesso negado", "E-mail ou senha incorretos. Verifique suas credenciais.");
+      Alert.alert(
+        "Acesso negado",
+        "E-mail ou senha incorretos. Verifique suas credenciais e tente novamente."
+      );
     }
   };
 
@@ -95,6 +106,7 @@ export default function AdminLoginScreen() {
                   placeholderTextColor={colors.muted}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  autoCorrect={false}
                 />
               </View>
             </View>
@@ -113,9 +125,9 @@ export default function AdminLoginScreen() {
                   returnKeyType="done"
                   onSubmitEditing={handleLogin}
                 />
-                <Pressable onPress={() => setShowPassword((v) => !v)}>
+                <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
                   <IconSymbol
-                    name={showPassword ? "eye.slash.fill" as any : "eye.fill" as any}
+                    name={showPassword ? ("eye.slash.fill" as any) : ("eye.fill" as any)}
                     size={16}
                     color={colors.muted}
                   />
@@ -126,26 +138,32 @@ export default function AdminLoginScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.loginBtn,
-                { backgroundColor: colors.primary },
+                { backgroundColor: loading ? colors.border : colors.primary },
                 pressed && { transform: [{ scale: 0.97 }] },
               ]}
               onPress={handleLogin}
               disabled={loading}
             >
-              <Text style={styles.loginBtnText}>
-                {loading ? "Verificando..." : "Entrar no Painel"}
-              </Text>
+              {loading ? (
+                <View style={styles.loadingRow}>
+                  <IconSymbol name="arrow.clockwise" size={18} color={colors.muted} />
+                  <Text style={[styles.loginBtnText, { color: colors.muted }]}>Verificando...</Text>
+                </View>
+              ) : (
+                <View style={styles.loadingRow}>
+                  <IconSymbol name="lock.open.fill" size={18} color="#0B1628" />
+                  <Text style={styles.loginBtnText}>Entrar no Painel</Text>
+                </View>
+              )}
             </Pressable>
           </View>
 
-          {/* Demo Hint */}
-          <View style={[styles.demoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <IconSymbol name="info.circle.fill" size={16} color={colors.warning} />
-            <View>
-              <Text style={[styles.demoTitle, { color: colors.warning }]}>Credenciais de demonstração</Text>
-              <Text style={[styles.demoText, { color: colors.muted }]}>E-mail: {ADMIN_EMAIL}</Text>
-              <Text style={[styles.demoText, { color: colors.muted }]}>Senha: {ADMIN_PASSWORD}</Text>
-            </View>
+          {/* Security Note */}
+          <View style={[styles.securityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <IconSymbol name="shield.fill" size={16} color={colors.primary} />
+            <Text style={[styles.securityText, { color: colors.muted }]}>
+              Acesso restrito a administradores autorizados. Todas as ações são registradas para auditoria.
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -199,14 +217,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 4,
   },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   loginBtnText: { color: "#0B1628", fontSize: 16, fontWeight: "700" },
-  demoCard: {
+  securityCard: {
     flexDirection: "row",
     gap: 12,
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
+    alignItems: "flex-start",
   },
-  demoTitle: { fontSize: 13, fontWeight: "700", marginBottom: 4 },
-  demoText: { fontSize: 12 },
+  securityText: { flex: 1, fontSize: 12, lineHeight: 18 },
 });
