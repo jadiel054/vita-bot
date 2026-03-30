@@ -24,7 +24,8 @@ import {
   getPatients, 
   savePatients, 
   setCurrentPatientId,
-  generateId 
+  generateId,
+  getAIConfig
 } from "@/lib/store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
