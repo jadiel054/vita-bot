@@ -3,7 +3,7 @@
  * This allows runtime switching of AI providers without restarting the server
  */
 
-import { ENV } from "./env";
+import { ENV } from "./env.js";
 
 export type AIProvider = "openai" | "anthropic" | "groq" | "manus";
 
