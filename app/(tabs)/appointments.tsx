@@ -4,13 +4,12 @@ import {
   FlatList,
   Pressable,
   StyleSheet,
-  Alert,
   RefreshControl,
+  Platform,
 } from "react-native";
 import { useState, useEffect, useCallback } from "react";
 import { router, useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { Platform } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -22,7 +21,7 @@ import {
   getClinic,
   type Appointment,
 } from "@/lib/store";
-// Removed tRPC import - using HTTP directly
+import { showAlert } from "@/lib/utils";
 
 const STATUS_LABELS: Record<Appointment["status"], string> = {
   scheduled: "Agendada",
@@ -112,14 +111,13 @@ function AppointmentCard({
 
 export default function AppointmentsScreen() {
   const colors = useColors();
-  // Removed tRPC mutation - using HTTP directly
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [filter, setFilter] = useState<FilterType>("upcoming");
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     const appts = await getAppointments();
-    setAppointments(appts);
+    setAppointments(appts || []);
   }, []);
 
   useFocusEffect(
@@ -135,7 +133,7 @@ export default function AppointmentsScreen() {
   };
 
   const handleCancel = (id: string) => {
-    Alert.alert(
+    showAlert(
       "Cancelar Consulta",
       "Tem certeza que deseja cancelar esta consulta?",
       [
@@ -144,15 +142,14 @@ export default function AppointmentsScreen() {
           text: "Sim, cancelar",
           style: "destructive",
           onPress: async () => {
-            const appointment = appointments.find((a) => a.id === id);
-            await updateAppointmentStatus(id, "cancelled");
+            try {
+              const appointment = appointments.find((a) => a.id === id);
+              await updateAppointmentStatus(id, "cancelled");
 
-            // Send WhatsApp cancellation notification via HTTP
-            if (appointment) {
-              const clinic = await getClinic();
-              if (clinic.whatsapp) {
-                try {
-                  const response = await fetch("/api/whatsapp/notify-cancellation", {
+              if (appointment) {
+                const clinic = await getClinic();
+                if (clinic.whatsapp) {
+                  fetch("/api/whatsapp/notify-cancellation", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -163,23 +160,18 @@ export default function AppointmentsScreen() {
                       doctorName: appointment.doctorName,
                       recipientPhone: clinic.whatsapp,
                     }),
-                  });
-                  if (!response.ok) {
-                    const error = await response.json();
-                    console.warn("[Appointments] Failed to send cancellation notification:", error);
-                  } else {
-                    console.log("[Appointments] Cancellation notification sent");
-                  }
-                } catch (whatsappError) {
-                  console.warn("[Appointments] Failed to send cancellation notification:", whatsappError);
+                  }).catch((err) => console.warn("[Appointments] Cancellation email error:", err));
                 }
               }
-            }
 
-            if (Platform.OS !== "web") {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              if (Platform.OS !== "web") {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
+              load();
+            } catch (err) {
+              console.error("[Appointments] Error cancelling:", err);
+              showAlert("Erro", "Não foi possível cancelar a consulta.");
             }
-            load();
           },
         },
       ]
@@ -193,6 +185,7 @@ export default function AppointmentsScreen() {
   const today = new Date().toISOString().split("T")[0];
 
   const filtered = appointments.filter((a) => {
+    if (!a) return false;
     if (filter === "upcoming") return (a.status === "scheduled" || a.status === "confirmed") && a.date >= today;
     if (filter === "past") return a.status === "completed" || (a.date < today && a.status !== "cancelled");
     if (filter === "cancelled") return a.status === "cancelled";

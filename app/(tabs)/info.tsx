@@ -7,6 +7,7 @@ import {
   Linking,
 } from "react-native";
 import { useState, useEffect } from "react";
+import { router } from "expo-router";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -57,7 +58,7 @@ export default function InfoScreen() {
     (async () => {
       const [c, d] = await Promise.all([getClinic(), getDoctors()]);
       setClinic(c);
-      setDoctors(d);
+      setDoctors(d || []);
     })();
   }, []);
 
@@ -129,7 +130,7 @@ export default function InfoScreen() {
             colors={colors}
           />
           <InfoRow
-            icon="car.fill" // will fallback to nearest icon
+            icon="car.fill"
             label="Estacionamento"
             value={clinic.parkingInfo}
             colors={colors}
@@ -162,29 +163,23 @@ export default function InfoScreen() {
           </View>
         ))}
 
-        {/* Convênios */}
-        <SectionHeader title="CONVÊNIOS ACEITOS" colors={colors} />
-        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border, paddingVertical: 14 }]}>
-          <View style={styles.tagsGrid}>
-            {clinic.insurances.map((ins) => (
-              <View key={ins} style={[styles.tag, { backgroundColor: colors.primary + "15", borderColor: colors.primary }]}>
-                <Text style={[styles.tagText, { color: colors.primary }]}>{ins}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Pagamentos */}
-        <SectionHeader title="FORMAS DE PAGAMENTO" colors={colors} />
-        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border, paddingVertical: 14 }]}>
-          <View style={styles.tagsGrid}>
-            {clinic.paymentMethods.map((pm) => (
-              <View key={pm} style={[styles.tag, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <IconSymbol name="creditcard.fill" size={12} color={colors.muted} />
-                <Text style={[styles.tagText, { color: colors.foreground }]}>{pm}</Text>
-              </View>
-            ))}
-          </View>
+        {/* Legal & Privacidade */}
+        <SectionHeader title="LEGAL & PRIVACIDADE" colors={colors} />
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <InfoRow
+            icon="lock.fill"
+            label="Política de Privacidade (LGPD)"
+            value="Conheça como tratamos seus dados"
+            onPress={() => router.push("/privacy-policy" as any)}
+            colors={colors}
+          />
+          <InfoRow
+            icon="doc.text.fill"
+            label="Termos de Uso"
+            value="Condições de uso do VitaBot"
+            onPress={() => router.push("/terms" as any)}
+            colors={colors}
+          />
         </View>
 
         <View style={{ height: 24 }} />
@@ -268,20 +263,4 @@ const styles = StyleSheet.create({
   doctorName: { fontSize: 15, fontWeight: "700" },
   doctorSpec: { fontSize: 13, fontWeight: "500", marginTop: 2 },
   doctorCrm: { fontSize: 12, marginTop: 2 },
-  tagsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    paddingHorizontal: 14,
-  },
-  tag: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  tagText: { fontSize: 13, fontWeight: "500" },
 });
