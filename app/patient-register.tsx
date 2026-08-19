@@ -5,9 +5,9 @@ import {
   TextInput,
   Pressable,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { useState } from "react";
 import { router } from "expo-router";
@@ -23,9 +23,17 @@ import {
   formatCpf,
   formatPhone,
   getPatients,
+  saveUserConsent,
   type Patient,
 } from "@/lib/store";
 import { isValidCPF, getCPFErrorMessage } from "@/lib/cpf-validator";
+import {
+  showAlert,
+  sanitizeName,
+  sanitizeCPF,
+  sanitizePhone,
+  sanitizeEmail,
+} from "@/lib/utils";
 
 const INSURANCE_OPTIONS = [
   "Unimed", "Bradesco Saúde", "SulAmérica", "Amil",
@@ -142,6 +150,7 @@ export default function PatientRegisterScreen() {
   const [email, setEmail] = useState("");
   const [healthInsurance, setHealthInsurance] = useState("");
   const [howFound, setHowFound] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const handleCpfChange = (v: string) => setCpf(formatCpf(v));
   const handlePhoneChange = (v: string) => setPhone(formatPhone(v));
@@ -161,67 +170,75 @@ export default function PatientRegisterScreen() {
       isValidCPF(cpf) &&
       birthDate.length === 10 &&
       phone.replace(/\D/g, "").length >= 10 &&
-      email.includes("@")
+      email.includes("@") &&
+      acceptedTerms
     );
   };
 
   const handleSubmit = async () => {
-    // Validar nome
-    if (fullName.trim().length < 3) {
-      Alert.alert("Nome inválido", "O nome deve ter pelo menos 3 caracteres.");
+    const cleanName = sanitizeName(fullName);
+    const cleanCpfDigits = sanitizeCPF(cpf);
+    const cleanPhone = sanitizePhone(phone);
+    const cleanWhatsApp = whatsapp ? sanitizePhone(whatsapp) : cleanPhone;
+    const cleanEmailStr = sanitizeEmail(email);
+
+    if (cleanName.length < 3) {
+      showAlert("Nome inválido", "O nome deve ter pelo menos 3 caracteres.");
       return;
     }
 
-    // Validar CPF
-    if (!isValidCPF(cpf)) {
-      const errorMsg = getCPFErrorMessage(cpf);
-      Alert.alert("CPF Inválido", errorMsg);
+    if (!isValidCPF(cleanCpfDigits)) {
+      const errorMsg = getCPFErrorMessage(cleanCpfDigits);
+      showAlert("CPF Inválido", errorMsg);
       return;
     }
 
-    // Validar data
     if (birthDate.length !== 10) {
-      Alert.alert("Data de nascimento inválida", "Por favor, preencha a data de nascimento corretamente (DD/MM/YYYY).");
+      showAlert("Data de nascimento inválida", "Por favor, preencha a data de nascimento corretamente (DD/MM/AAAA).");
       return;
     }
 
-    // Validar telefone
-    if (phone.replace(/\D/g, "").length < 10) {
-      Alert.alert("Telefone inválido", "O telefone deve ter pelo menos 10 dígitos.");
+    if (cleanPhone.length < 10) {
+      showAlert("Telefone inválido", "O telefone deve ter pelo menos 10 dígitos com DDD.");
       return;
     }
 
-    // Validar email
-    if (!email.includes("@")) {
-      Alert.alert("Email inválido", "Por favor, digite um email válido.");
+    if (!cleanEmailStr.includes("@")) {
+      showAlert("E-mail inválido", "Por favor, digite um endereço de e-mail válido.");
+      return;
+    }
+
+    if (!acceptedTerms) {
+      showAlert("Aceite Obrigatório", "Você precisa aceitar os Termos de Uso e a Política de Privacidade para prosseguir.");
       return;
     }
 
     setLoading(true);
     try {
-      // Verificar se CPF já está cadastrado
       const existingPatients = await getPatients();
-      const cpfNormalized = cpf.replace(/\D/g, "");
-      const cpfExists = existingPatients.some((p) => p.cpf.replace(/\D/g, "") === cpfNormalized);
+      const cpfExists = existingPatients.some(
+        (p) => p && p.cpf && p.cpf.replace(/\D/g, "") === cleanCpfDigits
+      );
 
       if (cpfExists) {
-        Alert.alert("CPF já cadastrado", "Este CPF já está registrado em nosso sistema.");
+        showAlert("CPF já cadastrado", "Este CPF já está registrado em nosso sistema.", [
+          { text: "OK", onPress: () => router.push("/booking" as any) },
+        ]);
         setLoading(false);
         return;
       }
 
-      // Convert DD/MM/YYYY to YYYY-MM-DD
       const [day, month, year] = birthDate.split("/");
       const isoDate = `${year}-${month}-${day}`;
 
       const patient: Patient = {
         id: generateId(),
-        fullName: fullName.trim(),
-        cpf,
+        fullName: cleanName,
+        cpf: formatCpf(cleanCpfDigits),
         birthDate: isoDate,
-        phone,
-        whatsapp: whatsapp || phone,
-        email: email.trim(),
+        phone: formatPhone(cleanPhone),
+        whatsapp: formatPhone(cleanWhatsApp),
+        email: cleanEmailStr,
         healthInsurance,
         howFound,
         createdAt: new Date().toISOString(),
@@ -229,19 +246,31 @@ export default function PatientRegisterScreen() {
 
       await addPatient(patient);
       await setCurrentPatientId(patient.id);
+      await saveUserConsent(true);
 
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
 
-      Alert.alert(
+      showAlert(
         "✅ Cadastro Realizado!",
-        `Bem-vindo(a), ${fullName.split(" ")[0]}! Seu cadastro foi concluído com sucesso.`,
-        [{ text: "OK", onPress: () => router.canGoBack() ? router.back() : router.replace("/(tabs)/profile" as any) }]
+        `Bem-vindo(a), ${cleanName.split(" ")[0]}! Seu cadastro foi concluído com sucesso.`,
+        [
+          {
+            text: "Ir para Agendamento",
+            onPress: () => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace("/booking" as any);
+              }
+            },
+          },
+        ]
       );
     } catch (err) {
       console.error("[PatientRegister] Erro ao cadastrar paciente:", err);
-      Alert.alert("❌ Erro", "Não foi possível realizar o cadastro. Tente novamente.");
+      showAlert("Erro", "Não foi possível realizar o cadastro. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -253,7 +282,13 @@ export default function PatientRegisterScreen() {
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <Pressable
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)" as any);
+            }
+          }}
         >
           <IconSymbol name="xmark" size={22} color={colors.foreground} />
         </Pressable>
@@ -268,9 +303,9 @@ export default function PatientRegisterScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           {/* Info Banner */}
           <View style={[styles.infoBanner, { backgroundColor: colors.primary + "15", borderColor: colors.primary }]}>
-            <IconSymbol name="lock.fill" size={16} color={colors.primary} />
-            <Text style={[styles.infoText, { color: colors.primary }]}>
-              Seus dados são protegidos conforme a LGPD e utilizados apenas para fins médicos.
+            <IconSymbol name="lock.fill" size={18} color={colors.primary} />
+            <Text style={[styles.infoText, { color: colors.foreground }]}>
+              Seus dados são armazenados com segurança e protegidos segundo as normas da LGPD.
             </Text>
           </View>
 
@@ -311,7 +346,7 @@ export default function PatientRegisterScreen() {
           <Text style={[styles.sectionTitle, { color: colors.primary }]}>CONTATO</Text>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <InputField
-              label="Telefone"
+              label="Telefone com DDD"
               value={phone}
               onChangeText={handlePhoneChange}
               placeholder="(11) 99999-9999"
@@ -321,7 +356,7 @@ export default function PatientRegisterScreen() {
               maxLength={15}
             />
             <InputField
-              label="WhatsApp (se diferente do telefone)"
+              label="WhatsApp (opcional)"
               value={whatsapp}
               onChangeText={handleWhatsAppChange}
               placeholder="(11) 99999-9999"
@@ -364,24 +399,69 @@ export default function PatientRegisterScreen() {
             />
           </View>
 
-          {/* Submit */}
+          {/* Checkbox de Aceite LGPD / Termos */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.termsRow,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              pressed && { opacity: 0.8 },
+            ]}
+            onPress={() => setAcceptedTerms(!acceptedTerms)}
+          >
+            <View style={[styles.checkbox, { borderColor: acceptedTerms ? colors.primary : colors.border, backgroundColor: acceptedTerms ? colors.primary : "transparent" }]}>
+              {acceptedTerms && <IconSymbol name="checkmark" size={14} color="#0B1628" />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.termsText, { color: colors.foreground }]}>
+                Li e concordo com os{" "}
+                <Text
+                  style={{ color: colors.primary, textDecorationLine: "underline" }}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    router.push("/terms" as any);
+                  }}
+                >
+                  Termos de Uso
+                </Text>{" "}
+                e a{" "}
+                <Text
+                  style={{ color: colors.primary, textDecorationLine: "underline" }}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    router.push("/privacy-policy" as any);
+                  }}
+                >
+                  Política de Privacidade (LGPD)
+                </Text>
+                . Autorizo o uso de meus dados para agendamentos e mensagens via WhatsApp.
+              </Text>
+            </View>
+          </Pressable>
+
+          {/* Submit Button */}
           <Pressable
             style={({ pressed }) => [
               styles.submitBtn,
               { backgroundColor: isValid() ? colors.primary : colors.border },
-              pressed && isValid() && { transform: [{ scale: 0.97 }] },
+              pressed && isValid() && { transform: [{ scale: 0.98 }] },
             ]}
             onPress={handleSubmit}
             disabled={!isValid() || loading}
           >
-            <IconSymbol name="checkmark.circle.fill" size={20} color={isValid() ? "#0B1628" : colors.muted} />
-            <Text style={[styles.submitBtnText, { color: isValid() ? "#0B1628" : colors.muted }]}>
-              {loading ? "Cadastrando..." : "Concluir Cadastro"}
-            </Text>
+            {loading ? (
+              <ActivityIndicator color="#0B1628" />
+            ) : (
+              <>
+                <IconSymbol name="checkmark.circle.fill" size={20} color={isValid() ? "#0B1628" : colors.muted} />
+                <Text style={[styles.submitBtnText, { color: isValid() ? "#0B1628" : colors.muted }]}>
+                  Concluir Cadastro
+                </Text>
+              </>
+            )}
           </Pressable>
 
           <Text style={[styles.requiredNote, { color: colors.muted }]}>
-            * Campos obrigatórios
+            * Campos de preenchimento obrigatório
           </Text>
 
           <View style={{ height: 24 }} />
@@ -445,6 +525,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   optionChipText: { fontSize: 13, fontWeight: "500" },
+  termsRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  termsText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
   submitBtn: {
     flexDirection: "row",
     alignItems: "center",

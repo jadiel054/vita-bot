@@ -4,7 +4,6 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  Alert,
 } from "react-native";
 import { useState, useCallback } from "react";
 import { router, useFocusEffect } from "expo-router";
@@ -19,6 +18,7 @@ import {
   formatDate,
   type Patient,
 } from "@/lib/store";
+import { showAlert } from "@/lib/utils";
 
 function MenuItem({
   icon,
@@ -66,7 +66,7 @@ export default function ProfileScreen() {
         const id = await getCurrentPatientId();
         if (id) {
           const patients = await getPatients();
-          const found = patients.find((p) => p.id === id);
+          const found = patients.find((p) => p && p.id === id);
           setPatient(found ?? null);
         } else {
           setPatient(null);
@@ -76,7 +76,7 @@ export default function ProfileScreen() {
   );
 
   const handleLogout = () => {
-    Alert.alert("Sair do perfil", "Deseja sair do seu perfil de paciente?", [
+    showAlert("Sair do perfil", "Deseja sair do seu perfil de paciente?", [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Sair",
@@ -175,6 +175,25 @@ export default function ProfileScreen() {
               />
             </View>
 
+            {/* Legal */}
+            <Text style={[styles.sectionTitle, { color: colors.primary }]}>PRIVACIDADE E TERMOS</Text>
+            <View style={[styles.menuSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <MenuItem
+                icon="lock.fill"
+                label="Política de Privacidade (LGPD)"
+                subtitle="Como protegemos seus dados"
+                onPress={() => router.push("/privacy-policy" as any)}
+                colors={colors}
+              />
+              <MenuItem
+                icon="doc.text.fill"
+                label="Termos de Uso"
+                subtitle="Regras e condições do serviço"
+                onPress={() => router.push("/terms" as any)}
+                colors={colors}
+              />
+            </View>
+
             <View style={[styles.menuSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <MenuItem
                 icon="trash.fill"
@@ -230,6 +249,25 @@ export default function ProfileScreen() {
                 label="Planos VitaBot"
                 subtitle="Conheça os planos disponíveis"
                 onPress={() => router.push("/plans" as any)}
+                colors={colors}
+              />
+            </View>
+
+            {/* Legal */}
+            <Text style={[styles.sectionTitle, { color: colors.primary }]}>PRIVACIDADE E TERMOS</Text>
+            <View style={[styles.menuSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <MenuItem
+                icon="lock.fill"
+                label="Política de Privacidade (LGPD)"
+                subtitle="Como tratamos seus dados"
+                onPress={() => router.push("/privacy-policy" as any)}
+                colors={colors}
+              />
+              <MenuItem
+                icon="doc.text.fill"
+                label="Termos de Uso"
+                subtitle="Condições do sistema"
+                onPress={() => router.push("/terms" as any)}
                 colors={colors}
               />
             </View>

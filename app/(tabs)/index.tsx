@@ -115,20 +115,27 @@ export default function ChatScreen() {
   // Load clinic name and send welcome message
   useEffect(() => {
     (async () => {
-      // Sync AI Config with server
-      const aiConfig = await getAIConfig();
-      await syncAIConfig.mutateAsync(aiConfig);
+      try {
+        const aiConfig = await getAIConfig();
+        await syncAIConfig.mutateAsync(aiConfig);
+      } catch (e) {
+        console.warn("[ChatScreen] AI Config sync skipped or failed:", e);
+      }
 
-      const clinic = await getClinic();
-      setClinicName(clinic.name);
+      try {
+        const clinic = await getClinic();
+        setClinicName(clinic.name);
 
-      const welcome: Message = {
-        id: "welcome",
-        role: "assistant",
-        content: `Olá! Sou a VitaBot, assistente virtual da ${clinic.name}. Como posso ajudar você hoje?`,
-        timestamp: new Date(),
-      };
-      setMessages([welcome]);
+        const welcome: Message = {
+          id: "welcome",
+          role: "assistant",
+          content: `Olá! Sou a VitaBot, assistente virtual da ${clinic.name}. Como posso ajudar você hoje?`,
+          timestamp: new Date(),
+        };
+        setMessages([welcome]);
+      } catch (e) {
+        console.error("[ChatScreen] Error loading clinic info:", e);
+      }
     })();
   }, []);
 
@@ -155,10 +162,9 @@ export default function ChatScreen() {
       // Check for special keywords
       const lowerText = text.toLowerCase();
       if (lowerText.includes("agendar") || lowerText.includes("consulta")) {
-        // Navigate to booking after bot response
         setTimeout(() => {
           router.push("/booking" as any);
-        }, 2500);
+        }, 1500);
       }
 
       try {
@@ -245,7 +251,7 @@ export default function ChatScreen() {
     } else if (label === "Cancelar ou remarcar") {
       sendMessage(label);
     } else if (label === "Informações da clínica") {
-      router.push("/info" as any);
+      router.push("/(tabs)/info" as any);
     } else if (label === "Falar com atendente") {
       sendMessage("ATENDENTE");
     }
