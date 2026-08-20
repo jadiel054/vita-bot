@@ -5,6 +5,38 @@ import { InsertUser, users } from "../drizzle/schema.js";
 import { ENV } from "./_core/env.js";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let schemaInitialized = false;
+
+export async function ensureSchema(): Promise<void> {
+  if (schemaInitialized || !process.env.DATABASE_URL) return;
+  try {
+    const sql = neon(process.env.DATABASE_URL);
+    await sql`
+      DO $$ BEGIN
+        CREATE TYPE "role" AS ENUM('user', 'admin');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS "users" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "openId" varchar(64) NOT NULL,
+        "name" text,
+        "email" varchar(320),
+        "loginMethod" varchar(64),
+        "role" "role" DEFAULT 'user'::"role" NOT NULL,
+        "createdAt" timestamp DEFAULT now() NOT NULL,
+        "updatedAt" timestamp DEFAULT now() NOT NULL,
+        "lastSignedIn" timestamp DEFAULT now() NOT NULL,
+        CONSTRAINT "users_openId_unique" UNIQUE("openId")
+      );
+    `;
+    schemaInitialized = true;
+  } catch (error) {
+    console.warn("[Database] Schema auto-creation notice:", error);
+  }
+}
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
@@ -12,6 +44,7 @@ export async function getDb() {
     try {
       const sql = neon(process.env.DATABASE_URL);
       _db = drizzle(sql);
+      await ensureSchema();
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
