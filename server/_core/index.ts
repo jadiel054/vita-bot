@@ -7,6 +7,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth.js";
 import { appRouter } from "../routers.js";
 import { createContext } from "./context.js";
+import whatsappRouter from "../routes/whatsapp.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,12 +67,16 @@ function rateLimiter(maxRequests: number, windowMs: number) {
   };
 }
 
-setInterval(() => {
+const timer = setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of requestMap.entries()) {
     if (now > entry.resetTime) requestMap.delete(key);
   }
 }, 5 * 60 * 1000);
+
+if (timer && typeof timer === "object" && "unref" in timer) {
+  timer.unref();
+}
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
@@ -87,9 +92,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 // Rate limit sensitive WhatsApp routes
-import("../routes/whatsapp").then((m) => {
-  app.use("/api/whatsapp", rateLimiter(15, 60 * 1000), m.default);
-});
+app.use("/api/whatsapp", rateLimiter(15, 60 * 1000), whatsappRouter);
 
 // Rate limit tRPC requests
 app.use("/api/trpc", rateLimiter(120, 60 * 1000), createExpressMiddleware({ router: appRouter, createContext }));
