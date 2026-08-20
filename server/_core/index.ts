@@ -82,12 +82,21 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // Serve static public assets (manifest.json, sw.js)
-const publicDir = path.resolve(__dirname, "../../public");
-app.use(express.static(publicDir));
+try {
+  const publicDir = path.resolve(__dirname, "../../public");
+  app.use(express.static(publicDir));
+} catch {
+  // Ignore static assets failure in serverless environments
+}
 
 registerOAuthRoutes(app);
 
 app.get("/api/health", (_req, res) => {
+  res.json({ ok: true, timestamp: Date.now() });
+});
+
+// Support health check without /api prefix if rewritten directly
+app.get("/health", (_req, res) => {
   res.json({ ok: true, timestamp: Date.now() });
 });
 
@@ -97,7 +106,7 @@ app.use("/api/whatsapp", rateLimiter(15, 60 * 1000), whatsappRouter);
 // Rate limit tRPC requests
 app.use("/api/trpc", rateLimiter(120, 60 * 1000), createExpressMiddleware({ router: appRouter, createContext }));
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test" && !process.env.VERCEL) {
   const port = process.env.PORT || "3000";
   server.listen(port, () => console.log(`[api] server listening on port ${port}`));
 }
